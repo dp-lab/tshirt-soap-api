@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<mule xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit-soap="http://www.mulesoft.org/schema/mule/apikit-soap" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/apikit-soap http://www.mulesoft.org/schema/mule/apikit-soap/current/mule-apikit-soap.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+    <http:listener-config name="api-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="${http.port}"/>
+    </http:listener-config>
+    <apikit-soap:config httpStatusVarName="httpStatus" name="soapkit-config" port="TshirtServicePort" service="TshirtService" wsdlLocation="tshirt2.wsdl"/>
+    <api-gateway:autodiscovery apiId="18297428" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="f8be38ac-759a-46cc-8da7-4bb125e70bdb" flowRef="api-main" />
+	<flow name="api-main">
+        <http:listener config-ref="api-httpListenerConfig" path="/TshirtService/TshirtServicePort">
+            <http:response statusCode="#[attributes.additionalTransportData.statusCode default 200]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[attributes.protocolHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[attributes.additionalTransportData.statusCode default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[attributes.protocolHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit-soap:router config-ref="soapkit-config">
+            <apikit-soap:message>#[payload]</apikit-soap:message>
+            <apikit-soap:attributes>#[
+              %dw 2.0
+              output application/java
+              ---
+              {
+                  headers: attributes.headers,
+                  method: attributes.method,
+                  queryString: attributes.queryString
+            }]</apikit-soap:attributes>
+        </apikit-soap:router>
+    </flow>
+    <flow name="OrderTshirt:\soapkit-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+ns ns0 http://mulesoft.org/tshirt-service
+
+output application/xml
+---
+{
+	response:
+		{
+			message: "Order placed succefully!!!",
+			size: payload.body.ns0#OrderTshirt.size
+		}
+}]]>
+                </ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="9ee6a293-9e11-4a1c-9ec4-7bf23b2d6b89" message="#[payload]"/>
+    </flow>
+    <flow name="ListInventory:\soapkit-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	response:
+		{
+			message: "Please find the bellow products!!!",
+			products: {
+				product: ["Polo", "Printed"]
+			}
+		}
+}]]>
+                </ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="7c1c8263-e543-49d8-bddd-113ed9c80caa" message="#[payload]"/>
+    </flow>
+    <flow name="TrackOrder:\soapkit-config">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	response: {
+		message: "Your order is on the way!!!",
+		place: "Mangalore delivery centre"
+	}
+}]]>
+                </ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="245c6041-c765-46e1-b123-fe88a5dc06e9" message="#[payload]"/>
+    </flow>
+</mule>
